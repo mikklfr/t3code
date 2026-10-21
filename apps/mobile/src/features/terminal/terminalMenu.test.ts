@@ -5,11 +5,56 @@ import { DEFAULT_TERMINAL_ID } from "@t3tools/contracts";
 import { getTerminalLabel } from "@t3tools/shared/terminalLabels";
 
 import {
+  buildThreadTerminalMenu,
   nextOpenTerminalId,
   previousLiveTerminalId,
   resolveProjectScriptTerminalId,
   type TerminalMenuSession,
 } from "./terminalMenu";
+import { androidHeaderMenuActions } from "../../components/ui/headerMenu.android";
+
+describe("thread terminal menu", () => {
+  const build = {
+    id: "build",
+    name: "Build",
+    command: "bun run build",
+    icon: "build" as const,
+    runOnWorktreeCreate: false,
+  };
+  const menu = (canOperateTerminal: boolean) =>
+    buildThreadTerminalMenu({
+      projectScripts: [build],
+      terminalSessions: [makeMenuSession({ terminalId: "term-2", status: "running" })],
+      canOperateTerminal,
+      onRunProjectScript: async () => {},
+      onOpenTerminal: () => {},
+      onOpenNewTerminal: () => {},
+    });
+
+  it("offers saved actions alongside existing sessions and a new shell on Android", () => {
+    expect(
+      androidHeaderMenuActions(menu(true).items).map(({ id, title, subtitle }) => ({
+        id,
+        title,
+        subtitle,
+      })),
+    ).toEqual([
+      { id: "script-build", title: "Build", subtitle: "bun run build" },
+      { id: "terminal-term-2", title: "Terminal 2", subtitle: "Ready" },
+      {
+        id: "terminal-new",
+        title: "Open new terminal",
+        subtitle: "Start another shell for this thread",
+      },
+    ]);
+  });
+
+  it("keeps sessions accessible while disabling commands for read-only connections", () => {
+    expect(
+      androidHeaderMenuActions(menu(false).items).map((item) => Boolean(item.attributes?.disabled)),
+    ).toEqual([true, false, true]);
+  });
+});
 
 function makeMenuSession(input: {
   readonly terminalId: string;

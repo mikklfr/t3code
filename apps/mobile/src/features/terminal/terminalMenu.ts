@@ -1,6 +1,8 @@
 import { type KnownTerminalSession } from "@t3tools/client-runtime/state/terminal";
 import { DEFAULT_TERMINAL_ID, type ProjectScript } from "@t3tools/contracts";
 import { nextTerminalId, resolveTerminalSessionLabel } from "@t3tools/shared/terminalLabels";
+import { projectScriptMenuLabel } from "@t3tools/shared/projectScripts";
+import type { AppBarMenu } from "../../components/ui/AppBar.types";
 import * as Arr from "effect/Array";
 import * as Order from "effect/Order";
 
@@ -17,6 +19,47 @@ export interface TerminalMenuSession {
   readonly hasRunningSubprocess: boolean;
   readonly displayLabel: string;
   readonly updatedAt: string | null;
+}
+
+export function buildThreadTerminalMenu(input: {
+  readonly projectScripts: ReadonlyArray<ProjectScript>;
+  readonly terminalSessions: ReadonlyArray<TerminalMenuSession>;
+  readonly canOperateTerminal: boolean;
+  readonly onRunProjectScript: (script: ProjectScript) => Promise<void>;
+  readonly onOpenTerminal: (terminalId?: string | null) => void;
+  readonly onOpenNewTerminal: () => void;
+}): AppBarMenu {
+  return {
+    title: "Terminal",
+    icon: "terminal",
+    items: [
+      ...input.projectScripts.map((script) => ({
+        id: `script-${script.id}`,
+        title: projectScriptMenuLabel(script),
+        subtitle: script.command,
+        disabled: !input.canOperateTerminal,
+        onPress: () => void input.onRunProjectScript(script),
+      })),
+      ...(input.projectScripts.length === 0
+        ? [{ id: "scripts-empty", title: "No project scripts", disabled: true, onPress: () => {} }]
+        : []),
+      ...input.terminalSessions.map((session) => ({
+        id: `terminal-${session.terminalId}`,
+        title: session.displayLabel,
+        subtitle: [getTerminalStatusLabel(session), basename(session.cwd)]
+          .filter(Boolean)
+          .join(" · "),
+        onPress: () => input.onOpenTerminal(session.terminalId),
+      })),
+      {
+        id: "terminal-new",
+        title: "Open new terminal",
+        subtitle: "Start another shell for this thread",
+        disabled: !input.canOperateTerminal,
+        onPress: input.onOpenNewTerminal,
+      },
+    ],
+  };
 }
 
 const terminalMenuSessionOrder = Order.make<TerminalMenuSession>((left, right) => {
