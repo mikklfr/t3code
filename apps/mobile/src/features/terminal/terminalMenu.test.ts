@@ -54,6 +54,30 @@ describe("thread terminal menu", () => {
       androidHeaderMenuActions(menu(false).items).map((item) => Boolean(item.attributes?.disabled)),
     ).toEqual([true, false, true]);
   });
+
+  it.each([true, false])(
+    "preserves terminal permissions before any actions or sessions exist (operate=%s)",
+    (canOperateTerminal) => {
+      const emptyMenu = buildThreadTerminalMenu({
+        projectScripts: [],
+        terminalSessions: [],
+        canOperateTerminal,
+        onRunProjectScript: async () => {},
+        onOpenTerminal: () => {},
+        onOpenNewTerminal: () => {},
+      });
+
+      const actions = androidHeaderMenuActions(emptyMenu.items);
+      const enabledActions = actions.filter((action) => !action.attributes?.disabled);
+
+      expect(actions.find((action) => action.title === "No project scripts")?.attributes).toEqual({
+        disabled: true,
+      });
+      expect(enabledActions.map((action) => action.title)).toEqual(
+        canOperateTerminal ? ["Open new terminal"] : [],
+      );
+    },
+  );
 });
 
 function makeMenuSession(input: {
